@@ -4,67 +4,96 @@ pragma solidity 0.8.17;
 import "forge-std/Script.sol";
 import "../contracts/factory/TREXFactory.sol";
 import "../contracts/factory/ITREXFactory.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract DeployToken is Script {
-    using stdJson for string;
-
     function run() external {
         // Load private key for deployment
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address owner = vm.addr(deployerPrivateKey);
         
         // Start broadcasting transactions
         vm.startBroadcast(deployerPrivateKey);
         
-        // Load token details from JSON file
-        string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script/tokenDetails.json");
-        string memory json = vm.readFile(path);
-        
         // Get the factory address - this should be deployed already
-        // Replace with your actual factory address
         address factoryAddress = 0x8A791620dd6260079BF849Dc5567aDC3F2FdC318;
         TREXFactory factory = TREXFactory(factoryAddress);
         
-        // Parse the tokens array from the JSON
-        bytes memory tokenDataRaw = json.parseRaw(".tokens");
-        ITREXFactory.TokenDetails[] memory tokenDetailsArray = abi.decode(tokenDataRaw, (ITREXFactory.TokenDetails[]));
+        // Use your provided ONCHAINID contract address
+        address onchainId = 0x9A676e781A523b5d0C0e43731313A708CB607508;
         
-        // Deploy each token
-        for (uint256 i = 0; i < tokenDetailsArray.length; i++) {
-            ITREXFactory.TokenDetails memory tokenDetails = tokenDetailsArray[i];
-            
-            // Create claim details for this token
-            ITREXFactory.ClaimDetails memory claimDetails;
-            
-            // Parse claim topics
-            string memory claimTopicsPath = string.concat(".tokens[", Strings.toString(i), "].claimTopics");
-            bytes memory claimTopicsRaw = json.parseRaw(claimTopicsPath);
-            claimDetails.claimTopics = abi.decode(claimTopicsRaw, (uint256[]));
-            
-            // Parse issuers
-            string memory issuersPath = string.concat(".tokens[", Strings.toString(i), "].issuers");
-            bytes memory issuersRaw = json.parseRaw(issuersPath);
-            claimDetails.issuers = abi.decode(issuersRaw, (address[]));
-            
-            // Parse issuer claims
-            string memory issuerClaimsPath = string.concat(".tokens[", Strings.toString(i), "].issuerClaims");
-            bytes memory issuerClaimsRaw = json.parseRaw(issuerClaimsPath);
-            claimDetails.issuerClaims = abi.decode(issuerClaimsRaw, (uint256[][]));
-            
-            // Generate a unique salt for this token
-            string memory salt = string(abi.encodePacked(
-                Strings.toHexString(tokenDetails.owner),
-                tokenDetails.name
-            ));
-            
-            // Deploy the token suite
-            factory.deployTREXSuite(salt, tokenDetails, claimDetails);
-            
-            console.log("Deployed token:", tokenDetails.name);
-            console.log("Token address:", factory.getToken(salt));
-        }
+        // Empty arrays for agents and compliance
+        address[] memory tokenAgents = new address[](0);
+        address[] memory irAgents = new address[](0);
+        address[] memory complianceModules = new address[](0);
+        bytes[] memory complianceSettings = new bytes[](0);
+        
+        // Create token details struct
+        ITREXFactory.TokenDetails memory tokenDetails = ITREXFactory.TokenDetails({
+            name: "Example Security Token",
+            symbol: "EST",
+            decimals: 18,
+            owner: owner,
+            irs: address(0),
+            ONCHAINID: onchainId,  // Using your provided ONCHAINID address
+            irAgents: irAgents,
+            tokenAgents: tokenAgents,
+            complianceModules: complianceModules,
+            complianceSettings: complianceSettings
+        });
+        
+        // Hardcoded claim details
+        uint256[] memory claimTopics = new uint256[](2);
+        claimTopics[0] = 1;
+        claimTopics[1] = 7;
+        
+        address[] memory issuers = new address[](1);
+        issuers[0] = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
+        
+        uint256[][] memory issuerClaims = new uint256[][](1);
+        issuerClaims[0] = new uint256[](2);
+        issuerClaims[0][0] = 1;
+        issuerClaims[0][1] = 7;
+        
+        ITREXFactory.ClaimDetails memory claimDetails = ITREXFactory.ClaimDetails({
+            claimTopics: claimTopics,
+            issuers: issuers,
+            issuerClaims: issuerClaims
+        });
+        
+        // Generate a unique salt for this token
+        string memory salt = string(abi.encodePacked(
+            toHexString(tokenDetails.owner),
+            tokenDetails.name
+        ));
+        
+        // Deploy the token suite
+        factory.deployTREXSuite(salt, tokenDetails, claimDetails);
+        
+        console.log("Deployed token:", tokenDetails.name);
+        console.log("Token address:", factory.getToken(salt));
         
         vm.stopBroadcast();
+    }
+    
+    // Helper function to convert address to hex string
+    function toHexString(address addr) internal pure returns (string memory) {
+        bytes memory buffer = new bytes(42);
+        buffer[0] = '0';
+        buffer[1] = 'x';
+        for (uint256 i = 0; i < 20; i++) {
+            uint8 b = uint8(uint160(addr) / (2**(8*(19 - i))));
+            buffer[2 + i*2] = toHexChar(b / 16);
+            buffer[3 + i*2] = toHexChar(b % 16);
+        }
+        return string(buffer);
+    }
+    
+    // Helper function to convert uint8 to hex character
+    function toHexChar(uint8 val) internal pure returns (bytes1) {
+        if (val < 10) {
+            return bytes1(uint8(bytes1('0')) + val);
+        } else {
+            return bytes1(uint8(bytes1('a')) + val - 10);
+        }
     }
 }
