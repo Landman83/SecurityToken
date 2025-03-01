@@ -1,0 +1,9 @@
+forge-std/=lib/forge-std/src/
+@onchain-id/=node_modules/@onchain-id/
+@onchain-id/solidity/=node_modules/@onchain-id/solidity/src/
+@onchain-id/solidity/contracts/=node_modules/@onchain-id/solidity/src/contracts/
+@openzeppelin/=node_modules/@openzeppelin/
+@xyrusworx/=lib/@xyrusworx/
+@primitivefi/=lib/@primitivefi/
+@onchain-id/solidity/contracts/factory/=lib/@onchain-id/solidity/src/contracts/factory/
+
